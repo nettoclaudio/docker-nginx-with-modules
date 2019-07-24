@@ -1,0 +1,48 @@
+ARG nginx_version=1.16.0
+FROM nginx:${nginx_version} AS build
+
+RUN set -x \
+    && apt update \
+    && apt install -y gcc make curl \
+        perl libtext-template-perl libtest-http-server-simple-perl \
+        libpcre3-dev zlib1g-dev
+
+ARG openssl_version=1.1.1c
+RUN set -x \
+    && curl -fsSL "https://www.openssl.org/source/openssl-${openssl_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/openssl-${openssl_version} /usr/local/src/openssl \
+    && cd /usr/local/src/openssl \
+    && ./config \
+    && make \
+    && make test \
+    && make install_sw \
+    && ldconfig -v \
+    && openssl version -a
+
+RUN set -x \
+    && nginx_version=$(echo ${NGINX_VERSION} | sed 's/-.*//g') \
+    && curl -fsSL "https://nginx.org/download/nginx-${nginx_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/nginx-${nginx_version} /usr/local/src/nginx \
+    && cd /usr/local/src/nginx \
+    && nginx_configure_args=$(nginx -V 2>&1 | grep 'configure arguments:' | awk -F 'configure arguments: ' '{print $2}') \
+    && modified_configure_args=$(echo "${nginx_configure_args}" | sed -E 's| (--)|;\1|g' | tr -d \') \
+    && IFS=';' \
+    && ./configure ${modified_configure_args} \
+    && make \
+    && make install \
+    && nginx -V 2>&1
+
+FROM nginx:${nginx_version}
+
+COPY --from=build /usr/local/bin/*      /usr/local/bin/
+COPY --from=build /usr/local/include/*  /usr/local/include/
+COPY --from=build /usr/local/lib/*      /usr/local/lib/
+
+COPY --from=build /usr/sbin/nginx /usr/sbin/nginx
+
+RUN set -x \
+    && ldconfig -v 2>&1 \
+    && openssl version -a \
+    && nginx -V 2>&1
