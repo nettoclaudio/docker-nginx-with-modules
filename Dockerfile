@@ -92,6 +92,15 @@ RUN set -x \
     && make modules \
     && cp objs/*.so /usr/lib/nginx/modules/
 
+ARG luajit2_version=v2.1-20190626
+RUN set -x \
+    && curl -fsSL "https://github.com/openresty/luajit2/archive/${luajit2_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/luajit2-${luajit2_version#v} /usr/local/src/luajit2 \
+    && cd /usr/local/src/luajit2 \
+    && make \
+    && make install
+
 RUN set -x \
     && strip --strip-unneeded \
         /usr/local/bin/openssl \
@@ -112,8 +121,6 @@ COPY --from=build /usr/lib/nginx/modules/*  /usr/lib/nginx/modules/
 RUN set -x \
     && apt-get update \
     && apt-get install -y --no-install-suggests \
-        # Required for OpenResty
-        libluajit-5.1-2 \
         # Required for ModSecurity
         libcurl4-openssl-dev liblmdb-dev \
     && ldconfig -v 2>&1 \
