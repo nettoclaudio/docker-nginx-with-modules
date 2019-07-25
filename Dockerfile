@@ -9,7 +9,7 @@ RUN set -x \
         # Required for OpenSSL...
         perl libtext-template-perl libtest-http-server-simple-perl \
         # Required for ModSecurity...
-        g++ autoconf libluajit-5.1-dev libtool libxml2-dev \
+        g++ autoconf libtool libxml2-dev \
         git libcurl4-openssl-dev libgeoip-dev liblmdb-dev libpcre++-dev libyajl-dev \
         # Required for NGINX...
         libpcre3-dev zlib1g-dev \
@@ -28,6 +28,17 @@ RUN set -x \
     && make install \
     && ldconfig -v \
     && openssl version -a
+
+ARG luajit2_version=v2.1-20190626
+RUN set -x \
+    && curl -fsSL "https://github.com/openresty/luajit2/archive/${luajit2_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/luajit2-${luajit2_version#v} /usr/local/src/luajit2 \
+    && cd /usr/local/src/luajit2 \
+    && make \
+    && make install \
+    && ldconfig -v \
+    && luajit -v
 
 ARG modsecurity_version=v3.0.3
 RUN set -x \
@@ -92,15 +103,6 @@ RUN set -x \
     && make modules \
     && cp objs/*.so /usr/lib/nginx/modules/
 
-ARG luajit2_version=v2.1-20190626
-RUN set -x \
-    && curl -fsSL "https://github.com/openresty/luajit2/archive/${luajit2_version}.tar.gz" \
-    |  tar -C /usr/local/src -xzvf- \
-    && ln -sf /usr/local/src/luajit2-${luajit2_version#v} /usr/local/src/luajit2 \
-    && cd /usr/local/src/luajit2 \
-    && make \
-    && make install
-
 RUN set -x \
     && strip --strip-unneeded \
         /usr/local/bin/openssl \
@@ -125,6 +127,7 @@ RUN set -x \
         libcurl4-openssl-dev liblmdb-dev \
     && ldconfig -v 2>&1 \
     && openssl version -a \
+    && luajit -v \
     && nginx -V 2>&1 \
     && sed -i -E 's|listen\s+80|&80|g' /etc/nginx/conf.d/default.conf \
     && ln -sf /dev/stdout /var/log/modsec_audit.log \
