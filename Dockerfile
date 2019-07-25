@@ -38,7 +38,11 @@ RUN set -x \
     && make \
     && make install \
     && ldconfig -v \
+    && ln -sf /usr/local/include/luajit* /usr/local/include/luajit \
     && luajit -v
+
+ENV LUAJIT_LIB=/usr/local/lib \
+    LUAJIT_INC=/usr/local/include/luajit
 
 ARG modsecurity_version=v3.0.3
 RUN set -x \
@@ -119,6 +123,9 @@ COPY --from=build /usr/local/ssl        /usr/local/ssl
 
 COPY --from=build /usr/sbin/nginx           /usr/sbin/nginx
 COPY --from=build /usr/lib/nginx/modules/*  /usr/lib/nginx/modules/
+
+ENV LUAJIT_LIB=/usr/local/lib \
+    LUAJIT_INC=/usr/local/include/luajit
 
 RUN set -x \
     && apt-get update \
