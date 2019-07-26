@@ -11,7 +11,7 @@ image:
 
 test: image
 	@docker rm -f test-tsuru-nginx-$(flavor)-$(nginx_version) || true
-	@docker create -p 8888:80 --name test-tsuru-nginx-$(flavor)-$(nginx_version) tsuru/nginx-$(flavor):$(nginx_version) bash -c " \
+	@docker create -p 8888:8080 --name test-tsuru-nginx-$(flavor)-$(nginx_version) tsuru/nginx-$(flavor):$(nginx_version) bash -c " \
 	openssl req -x509 -newkey rsa:4096 -nodes -subj '/CN=localhost' -keyout /etc/nginx/key.pem -out /etc/nginx/cert.pem -days 365; \
 	nginx -c /etc/nginx/nginx-$(flavor).conf"
 	@docker cp $$PWD/test/nginx-$(flavor).conf test-tsuru-nginx-$(flavor)-$(nginx_version):/etc/nginx/

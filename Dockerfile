@@ -29,21 +29,6 @@ RUN set -x \
     && ldconfig -v \
     && openssl version -a
 
-ARG luajit2_version=v2.1-20190626
-RUN set -x \
-    && curl -fsSL "https://github.com/openresty/luajit2/archive/${luajit2_version}.tar.gz" \
-    |  tar -C /usr/local/src -xzvf- \
-    && ln -sf /usr/local/src/luajit2-${luajit2_version#v} /usr/local/src/luajit2 \
-    && cd /usr/local/src/luajit2 \
-    && make \
-    && make install \
-    && ldconfig -v \
-    && ln -sf /usr/local/include/luajit* /usr/local/include/luajit \
-    && luajit -v
-
-ENV LUAJIT_LIB=/usr/local/lib \
-    LUAJIT_INC=/usr/local/include/luajit
-
 ARG modsecurity_version=v3.0.3
 RUN set -x \
     && git clone --depth 1 -b ${modsecurity_version} https://github.com/SpiderLabs/ModSecurity.git /usr/local/src/modsecurity \
@@ -54,6 +39,41 @@ RUN set -x \
     && ./configure --prefix=/usr/local \
     && make \
     && make install
+
+ARG luajit2_version=v2.1-20190626
+RUN set -x \
+    && curl -fsSL "https://github.com/openresty/luajit2/archive/${luajit2_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/luajit2-${luajit2_version#v} /usr/local/src/luajit2 \
+    && cd /usr/local/src/luajit2 \
+    && make \
+    && make install \
+    && ldconfig -v \
+    && ln -sf /usr/local/include/luajit* /usr/local/include/luajit \
+    && luajit -v \
+    && ldconfig -v
+
+ENV LUA_VERSION=5.1 \
+    LUAJIT_LIB=/usr/local/lib \
+    LUAJIT_INC=/usr/local/include/luajit
+
+ARG resty_lrucache_version=v0.09
+RUN set -x \
+    && curl -fsSL "https://github.com/openresty/lua-resty-lrucache/archive/${resty_lrucache_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/lua-resty-lrucache-${resty_lrucache_version#v} /usr/local/src/lua-resty-lrucache \
+    && cd /usr/local/src/lua-resty-lrucache \
+    && make install
+
+ARG resty_core_version=v0.1.17
+RUN set -x \
+    && curl -fsSL "https://github.com/openresty/lua-resty-core/archive/${resty_core_version}.tar.gz" \
+    |  tar -C /usr/local/src -xzvf- \
+    && ln -sf /usr/local/src/lua-resty-core-${resty_core_version#v} /usr/local/src/lua-resty-core \
+    && cd /usr/local/src/lua-resty-core \
+    && make install
+
+ARG resty
 
 RUN set -x \
     && nginx_version=$(echo ${NGINX_VERSION} | sed 's/-.*//g') \
@@ -86,6 +106,7 @@ RUN set -x \
       dirname=$(echo "${module_repo}" | sed -E 's@^.*/|\..*$@@g'); \
       git clone --depth 1 "${module_repo}"; \
       cd ${dirname}; \
+      git fetch --tags; \
       if [[ -n "${module_tag}" ]]; then \
         if [[ "${module_tag}" =~ ^(pr-[0-9]+.*)$ ]]; then \
           pr_numbers="${BASH_REMATCH[1]//pr-/}"; \
@@ -116,9 +137,10 @@ RUN set -x \
 
 FROM nginx:${nginx_version}
 
-COPY --from=build /usr/local/bin/*      /usr/local/bin/
-COPY --from=build /usr/local/include/*  /usr/local/include/
-COPY --from=build /usr/local/lib/*      /usr/local/lib/
+COPY --from=build /usr/local/bin        /usr/local/bin
+COPY --from=build /usr/local/include    /usr/local/include
+COPY --from=build /usr/local/lib        /usr/local/lib
+COPY --from=build /usr/local/share/lua* /usr/local/share/
 COPY --from=build /usr/local/ssl        /usr/local/ssl
 
 COPY --from=build /usr/sbin/nginx           /usr/sbin/nginx
